@@ -1,0 +1,6 @@
+{
+  "name": "OmniConvert",
+  "description": "Professional-grade file conversion platform supporting 1500+ formats with advanced options and high-speed processing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

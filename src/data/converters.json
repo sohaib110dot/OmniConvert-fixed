@@ -1,0 +1,84 @@
+{
+  "converters": [
+    {
+      "id": "video",
+      "slug": "video-converter",
+      "name": "Video Converter",
+      "category": "video",
+      "supported_inputs": ["mp4", "mov", "mkv", "avi", "webm", "flv", "wmv"],
+      "supported_outputs": ["mp4", "webm", "mov", "avi", "mkv"],
+      "advanced_options": {
+        "resolution": ["480p", "720p", "1080p", "4k"],
+        "bitrate": ["1M", "3M", "6M", "12M"],
+        "presets": ["ultrafast", "fast", "medium", "slow", "placebo"],
+        "codec": ["h264", "h265", "vp9", "av1"]
+      },
+      "batch_supported": true,
+      "example_formats": ["MP4 to MOV", "MKV to MP4"],
+      "page_url": "/converters/video"
+    },
+    {
+      "id": "audio",
+      "slug": "audio-converter",
+      "name": "Audio Converter",
+      "category": "audio",
+      "supported_inputs": ["mp3", "wav", "flac", "aac", "ogg", "m4a"],
+      "supported_outputs": ["mp3", "aac", "wav", "flac", "m4a"],
+      "advanced_options": {
+        "bitrate": ["128k", "192k", "320k"],
+        "sample_rate": ["44100", "48000", "96000"],
+        "channels": ["mono", "stereo"]
+      },
+      "batch_supported": true,
+      "example_formats": ["WAV to MP3", "FLAC to AAC"],
+      "page_url": "/converters/audio"
+    },
+    {
+      "id": "image",
+      "slug": "image-converter",
+      "name": "Image Converter",
+      "category": "image",
+      "supported_inputs": ["jpg", "png", "webp", "tiff", "bmp", "heic"],
+      "supported_outputs": ["jpg", "png", "webp", "pdf", "svg"],
+      "advanced_options": {
+        "quality": [70, 80, 90, 100],
+        "resize": ["none", "50%", "75%", "width-1024", "height-768"],
+        "presets": ["web", "print", "social"]
+      },
+      "batch_supported": true,
+      "example_formats": ["JPG to PNG", "PNG to WEBP"],
+      "page_url": "/converters/image"
+    },
+    {
+      "id": "document",
+      "slug": "document-converter",
+      "name": "Document Converter",
+      "category": "document",
+      "supported_inputs": ["pdf", "docx", "doc", "odt", "txt", "rtf"],
+      "supported_outputs": ["pdf", "docx", "txt", "html", "jpeg"],
+      "advanced_options": {
+        "page_range": "all",
+        "ocr": ["none", "tesseract", "google"],
+        "layout": ["original", "cleaned"]
+      },
+      "batch_supported": true,
+      "example_formats": ["PDF to DOCX", "DOC to PDF"],
+      "page_url": "/converters/document"
+    },
+    {
+      "id": "archive",
+      "slug": "archive-converter",
+      "name": "Archive Converter",
+      "category": "archive",
+      "supported_inputs": ["zip", "7z", "tar", "rar", "gz"],
+      "supported_outputs": ["zip", "7z", "tar.gz"],
+      "advanced_options": {
+        "compression_level": ["none", "fast", "normal", "maximum"],
+        "encryption": ["none", "aes-256"]
+      },
+      "batch_supported": true,
+      "example_formats": ["RAR to ZIP", "ZIP to 7Z"],
+      "page_url": "/converters/archive"
+    }
+  ]
+}
