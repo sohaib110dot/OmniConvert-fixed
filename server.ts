@@ -110,8 +110,10 @@ app.post("/api/v1/convert", async (req, res) => {
   try {
     const { fileId, converterSlug, outputFormat, options } = req.body;
     
+    if (!fileId) throw new Error("missing uploaded file: fileId parameter is required.");
+
     const uploadRef = await repo.findUploadById(fileId);
-    if (!uploadRef) throw new Error("File not found.");
+    if (!uploadRef) throw new Error("missing uploaded file: File not found in the repository.");
 
     const job = await repo.createJob({
       uploadId: fileId,
@@ -129,18 +131,25 @@ app.post("/api/v1/convert", async (req, res) => {
 
         const inputExt = normaliseFormat(uploadRef.originalName.split('.').pop() || "");
         const targetExt = normaliseFormat(outputFormat || "");
-        const supportedRealImageFormats = ["jpg", "png", "webp"];
+
+        // Determine if this is a supported conversion combination (existing + new Phase 3 requirements)
+        const isStandardConversion = ["jpg", "png", "webp"].includes(inputExt) && ["jpg", "png", "webp"].includes(targetExt);
+        const isAvifInputConversion = inputExt === "avif" && ["jpg", "png", "webp"].includes(targetExt);
+        const isAvifOutputConversion = ["jpg", "png", "webp"].includes(inputExt) && targetExt === "avif";
+        const isSvgInputConversion = inputExt === "svg" && ["jpg", "png", "webp"].includes(targetExt);
+
+        const isSupportedConversion = isStandardConversion || isAvifInputConversion || isAvifOutputConversion || isSvgInputConversion;
 
         // Validate formats and categories
         if (converterSlug === "image-converter") {
-          if (!supportedRealImageFormats.includes(inputExt) || !supportedRealImageFormats.includes(targetExt)) {
-            throw new Error(`unsupported format error: Unsupported image format. Only JPG, PNG, and WEBP conversions are implemented in Phase 1.`);
+          if (!isSupportedConversion) {
+            throw new Error(`unsupported conversion: Unsupported image conversion combination (${inputExt.toUpperCase()} to ${targetExt.toUpperCase()}).`);
           }
           if (inputExt === targetExt) {
-            throw new Error(`unsupported format error: Input and output formats are identical (${inputExt.toUpperCase()}). Please select a different target format.`);
+            throw new Error(`unsupported conversion: Input and output formats are identical (${inputExt.toUpperCase()}). Please select a different target format.`);
           }
         } else {
-          throw new Error(`unsupported format error: Video, audio, document, and archive conversions are coming soon in a future phase.`);
+          throw new Error(`unsupported conversion: Video, audio, document, and archive conversions are coming soon in a future phase.`);
         }
 
         // 1. Download original file from storage
@@ -148,35 +157,40 @@ app.post("/api/v1/convert", async (req, res) => {
         try {
           fileBuffer = await downloadFromR2(uploadRef.storageKey);
         } catch (err: any) {
-          throw new Error(`storage error: Failed to fetch original file from R2: ${err.message}`);
+          throw new Error(`download failed: Failed to fetch original file from R2: ${err.message}`);
         }
 
-        await repo.updateJob(jobId, { progress: 25 });
-        await updateJobProgress(jobId, 25, "processing");
+        await repo.updateJob(jobId, { progress: 10 });
+        await updateJobProgress(jobId, 10, "processing");
 
         // 2. Process with Sharp
+        await repo.updateJob(jobId, { progress: 40 });
+        await updateJobProgress(jobId, 40, "processing");
+
         let outputBuffer: Buffer;
         try {
           let sharpImg = sharp(fileBuffer);
           const quality = options?.quality ? parseInt(options.quality, 10) : undefined;
 
           if (targetExt === "jpg") {
-            sharpImg = sharpImg.jpeg({ quality: quality || 90 });
+            sharpImg = sharpImg.jpeg({ quality: quality || 85, mozjpeg: true });
           } else if (targetExt === "png") {
             sharpImg = sharpImg.png();
           } else if (targetExt === "webp") {
-            sharpImg = sharpImg.webp({ quality: quality || 80 });
+            sharpImg = sharpImg.webp({ quality: quality || 75, effort: 2 });
+          } else if (targetExt === "avif") {
+            sharpImg = sharpImg.avif({ quality: quality || 65 });
           } else {
             throw new Error(`Unsupported format: ${targetExt}`);
           }
 
           outputBuffer = await sharpImg.toBuffer();
         } catch (err: any) {
-          throw new Error(`conversion error: Failed to process image with sharp: ${err.message}`);
+          throw new Error(`conversion failed: Failed to process image with sharp: ${err.message}`);
         }
 
-        await repo.updateJob(jobId, { progress: 75 });
-        await updateJobProgress(jobId, 75, "processing");
+        await repo.updateJob(jobId, { progress: 80 });
+        await updateJobProgress(jobId, 80, "processing");
 
         // 3. Upload converted output to storage
         let uploadResult;
@@ -187,7 +201,7 @@ app.post("/api/v1/convert", async (req, res) => {
           
           uploadResult = await uploadToR2(outputBuffer, outputName, mimeType);
         } catch (err: any) {
-          throw new Error(`storage error: Failed to upload converted image to R2: ${err.message}`);
+          throw new Error(`conversion failed: Failed to upload converted image to R2: ${err.message}`);
         }
 
         // 4. Save metadata to MongoDB
@@ -285,6 +299,8 @@ const mimeTypes: Record<string, string> = {
   'jpg': 'image/jpeg',
   'png': 'image/png',
   'webp': 'image/webp',
+  'avif': 'image/avif',
+  'svg': 'image/svg+xml',
   'gif': 'image/gif',
   'pdf': 'application/pdf',
   'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

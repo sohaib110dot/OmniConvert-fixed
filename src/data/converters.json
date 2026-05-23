@@ -38,8 +38,8 @@
       "slug": "image-converter",
       "name": "Image Converter",
       "category": "image",
-      "supported_inputs": ["jpg", "png", "webp", "tiff", "bmp", "heic"],
-      "supported_outputs": ["jpg", "png", "webp", "pdf", "svg"],
+      "supported_inputs": ["jpg", "png", "webp", "tiff", "bmp", "heic", "avif", "svg"],
+      "supported_outputs": ["jpg", "png", "webp", "pdf", "svg", "avif"],
       "advanced_options": {
         "quality": [70, 80, 90, 100],
         "resize": ["none", "50%", "75%", "width-1024", "height-768"],
