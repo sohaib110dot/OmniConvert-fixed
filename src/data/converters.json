@@ -54,8 +54,8 @@
       "slug": "pdf-converter",
       "name": "PDF Converter",
       "category": "pdf",
-      "supported_inputs": ["pdf", "jpg", "png", "jpeg"],
-      "supported_outputs": ["pdf", "jpg", "png", "jpeg"],
+      "supported_inputs": ["pdf", "jpg", "png", "jpeg", "webp"],
+      "supported_outputs": ["pdf", "jpg", "png", "jpeg", "webp"],
       "advanced_options": {
         "page_range": "first",
         "quality": [70, 80, 90, 100]

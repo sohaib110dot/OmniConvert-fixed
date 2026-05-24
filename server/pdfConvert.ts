@@ -3,7 +3,7 @@ import archiver from "archiver";
 import sharp from "sharp";
 import { PassThrough } from "stream";
 
-export type PdfImageFormat = "jpg" | "png";
+export type PdfImageFormat = "jpg" | "png" | "webp";
 
 export type PdfProgressCallback = (progress: number) => void | Promise<void>;
 
@@ -51,6 +51,9 @@ async function pageBufferToFormat(
 ): Promise<Buffer> {
   if (outputFormat === "png") {
     return await sharp(pagePng).png().toBuffer();
+  }
+  if (outputFormat === "webp") {
+    return await sharp(pagePng).webp({ quality }).toBuffer();
   }
   return await sharp(pagePng).jpeg({ quality, mozjpeg: true }).toBuffer();
 }
@@ -134,6 +137,16 @@ export async function pdfToImages(
   };
 }
 
+/** Render all PDF pages to WEBP; multi-page PDFs are returned as a ZIP. */
+export async function pdfToWebp(
+  pdfBuffer: Buffer,
+  quality: number,
+  originalBaseName: string,
+  onProgress?: PdfProgressCallback
+): Promise<PdfImageOutput> {
+  return pdfToImages(pdfBuffer, "webp", quality, originalBaseName, onProgress);
+}
+
 /** @deprecated Use pdfToImages — kept for compatibility. */
 export async function pdfToImage(
   pdfBuffer: Buffer,
@@ -149,7 +162,7 @@ export function isPdfConverterPair(
   targetExt: string
 ): boolean {
   return (
-    (["jpg", "png"].includes(inputExt) && targetExt === "pdf") ||
-    (inputExt === "pdf" && ["jpg", "png"].includes(targetExt))
+    (["jpg", "png", "webp"].includes(inputExt) && targetExt === "pdf") ||
+    (inputExt === "pdf" && ["jpg", "png", "webp"].includes(targetExt))
   );
 }

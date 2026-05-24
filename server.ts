@@ -9,7 +9,7 @@ import { connectDB, Upload, ConversionJob, getDBStatus } from "./server/db.ts";
 import { uploadToR2, downloadFromR2 } from "./server/storage.ts";
 import { updateJobProgress, getJobProgress, getRedis } from "./server/redis.ts";
 import sharp from "sharp";
-import { imageToPdf, pdfToImages, isPdfConverterPair } from "./server/pdfConvert.ts";
+import { imageToPdf, pdfToImages, pdfToWebp, isPdfConverterPair } from "./server/pdfConvert.ts";
 import {
   convertMedia,
   isMediaConversion,
@@ -171,7 +171,7 @@ app.post("/api/v1/convert", async (req, res) => {
         // Validate formats and categories
         if (converterSlug === "pdf-converter") {
           if (!isSupportedPdfConversion) {
-            throw new Error(`unsupported conversion: Unsupported PDF conversion (${inputExt.toUpperCase()} to ${targetExt.toUpperCase()}). Supported: JPG/PNG to PDF, PDF to JPG/PNG.`);
+            throw new Error(`unsupported conversion: Unsupported PDF conversion (${inputExt.toUpperCase()} to ${targetExt.toUpperCase()}). Supported: JPG/PNG/WEBP to PDF, PDF to JPG/PNG/WEBP.`);
           }
         } else if (converterSlug === "image-converter") {
           if (!isSupportedConversion) {
@@ -219,7 +219,23 @@ app.post("/api/v1/convert", async (req, res) => {
         try {
           if (converterSlug === "pdf-converter") {
             if (targetExt === "pdf") {
-              outputBuffer = await imageToPdf(fileBuffer, inputExt as "jpg" | "png");
+              outputBuffer = await imageToPdf(fileBuffer, inputExt as "jpg" | "png" | "webp");
+            } else if (targetExt === "webp") {
+              const pdfResult = await pdfToWebp(
+                fileBuffer,
+                quality || 85,
+                fileBaseName,
+                async (pageProgress) => {
+                  await repo.updateJob(jobId, {
+                    progress: pageProgress,
+                    status: "processing",
+                  });
+                  await updateJobProgress(jobId, pageProgress, "processing");
+                }
+              );
+              outputBuffer = pdfResult.buffer;
+              outputExtForJob = pdfResult.outputExt;
+              outputFileName = pdfResult.outputFileName;
             } else {
               const pdfResult = await pdfToImages(
                 fileBuffer,
