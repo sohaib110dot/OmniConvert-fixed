@@ -13,6 +13,8 @@ export const ALLOWED_EXTENSIONS = new Set([
   "webp",
   "avif",
   "svg",
+  "heic",
+  "heif",
   "pdf",
   "mp4",
   "webm",
@@ -29,6 +31,8 @@ const MIME_BY_EXT: Record<string, string[]> = {
   webp: ["image/webp"],
   avif: ["image/avif"],
   svg: ["image/svg+xml", "image/svg"],
+  heic: ["image/heic"],
+  heif: ["image/heif"],
   pdf: ["application/pdf"],
   mp4: ["video/mp4"],
   webm: ["video/webm"],
@@ -60,7 +64,7 @@ export function validateUploadFile(file: Express.Multer.File): void {
   const ext = normaliseExtension(file.originalname);
   if (!ALLOWED_EXTENSIONS.has(ext) && !ALLOWED_EXTENSIONS.has(file.originalname.split(".").pop()?.toLowerCase() || "")) {
     throw new Error(
-      "Unsupported file type. Allowed: images (JPG, PNG, WEBP, AVIF, SVG), PDF, video (MP4, WEBM, MOV, MKV), audio (MP3, WAV)."
+      "Unsupported file type. Allowed: images (JPG, PNG, WEBP, AVIF, SVG, HEIC, HEIF), PDF, video (MP4, WEBM, MOV, MKV), audio (MP3, WAV)."
     );
   }
 
