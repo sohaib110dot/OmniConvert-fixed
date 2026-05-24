@@ -77,7 +77,8 @@ async function readLocally(key: string): Promise<Buffer> {
 }
 
 export async function uploadToR2(buffer: Buffer, originalName: string, mimeType: string) {
-  const extension = originalName.split('.').pop();
+  const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const extension = (safeName.split(".").pop() || "bin").toLowerCase();
   const key = `${uuidv4()}.${extension}`;
 
   if (isLocalFallbackActive) {

@@ -62,7 +62,7 @@ interface BackendStatus {
 }
 
 // --- Home Components ---
-const Hero = ({ onUpload }: { onUpload: (files: FileList | File[]) => void }) => {
+const Hero = ({ onUpload }: { onUpload: () => void }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   return (
@@ -88,7 +88,7 @@ const Hero = ({ onUpload }: { onUpload: (files: FileList | File[]) => void }) =>
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
-              if (e.dataTransfer.files) onUpload(e.dataTransfer.files);
+              onUpload();
             }}
           >
             <div className="flex flex-col items-center">
@@ -105,8 +105,7 @@ const Hero = ({ onUpload }: { onUpload: (files: FileList | File[]) => void }) =>
             type="file" 
             className="hidden" 
             ref={fileInputRef} 
-            onChange={(e) => e.target.files && onUpload(e.target.files)}
-            multiple
+            onChange={() => onUpload()}
           />
 
           <div className="mt-4 text-xs text-gray-400">
@@ -194,7 +193,7 @@ const JobProgressCard = ({ job, onCancel }: { job: Job, onCancel: () => void }) 
 );
 
 function MainApp() {
-  const { path } = useRouter();
+  const { path, navigate } = useRouter();
 
   const [convertersData, setConvertersData] = useState<Record<string, Converter> | null>(null);
   const [activeJob, setActiveJob] = useState<Job | null>(null);
@@ -475,7 +474,7 @@ function MainApp() {
       case "":
         return (
           <>
-            <Hero onUpload={(files) => handleFileUpload(files, { converterSlug: "video-converter", outputFormat: "mp4" })} />
+            <Hero onUpload={() => navigate("/convert/image")} />
             <div className="max-w-7xl mx-auto px-4 py-20 font-sans">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-24">
                 <div className="text-center">

@@ -10,13 +10,23 @@ import { uploadToR2, downloadFromR2 } from "./server/storage.ts";
 import { updateJobProgress, getJobProgress, getRedis } from "./server/redis.ts";
 import sharp from "sharp";
 import { imageToPdf, pdfToImage, isPdfConverterPair } from "./server/pdfConvert.ts";
+import {
+  setupSecurity,
+  validateUploadFile,
+  sanitizeFilename,
+  safeErrorMessage,
+  MAX_UPLOAD_BYTES,
+} from "./server/security.ts";
+import { startCleanupScheduler } from "./server/cleanup.ts";
 
 dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json());
+setupSecurity(app);
+app.use(express.json({ limit: "1mb" }));
+startCleanupScheduler();
 
 // Initialize DB
 connectDB();
@@ -43,9 +53,9 @@ app.post("/api/v1/health/retry", async (req, res) => {
 
 // Multer for file uploads (Memory storage)
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for demo
+  limits: { fileSize: MAX_UPLOAD_BYTES },
 });
 
 // AI Setup (Lazy)
@@ -79,25 +89,27 @@ import { repo } from "./server/repo.ts";
 app.post("/api/v1/upload", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) throw new Error("No file uploaded.");
+    validateUploadFile(req.file);
 
-    const result = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
-    
+    const safeOriginalName = sanitizeFilename(req.file.originalname);
+    const result = await uploadToR2(req.file.buffer, safeOriginalName, req.file.mimetype);
+
     const dbUpload = await repo.createUpload({
-      originalName: req.file.originalname,
+      originalName: safeOriginalName,
       storageKey: result.key,
       fileSize: req.file.size,
       mimeType: req.file.mimetype,
     });
 
-    res.json({ 
+    res.json({
       fileId: dbUpload._id,
-      filename: req.file.originalname,
+      filename: safeOriginalName,
       size: req.file.size,
-      url: result.url
+      url: result.url,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Upload error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: safeErrorMessage(error, "Upload failed.") });
   }
 });
 
@@ -271,8 +283,8 @@ app.post("/api/v1/convert", async (req, res) => {
     })();
 
     res.json({ jobId });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(400).json({ error: safeErrorMessage(error, "Conversion could not be started.") });
   }
 });
 
@@ -311,8 +323,8 @@ app.get("/api/v1/status/:jobId", async (req, res) => {
       outputUrl: job.downloadUrl || null
     });
 
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: safeErrorMessage(error) });
   }
 });
 
@@ -366,21 +378,11 @@ app.get("/api/v1/download/:jobId", async (req, res) => {
       }
     }
     
-    if (['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(format)) {
-      return res.redirect('https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
-    }
-
-    if (['mp3', 'wav', 'aac', 'm4a', 'flac'].includes(format)) {
-      return res.redirect('https://www.w3schools.com/html/horse.mp3');
-    }
-
-    const dummyContent = Buffer.from(`OmniConvert Integrated Output\nFormat: ${format}\nConversion ID: ${req.params.jobId}\nThis file was successfully processed using our integrated backend.`);
-    
-    res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
-    res.setHeader('Content-Type', mimeType);
-    res.send(dummyContent);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    return res.status(404).json({
+      error: "Converted file is not available. The job may have expired or storage is misconfigured.",
+    });
+  } catch (error: unknown) {
+    res.status(500).json({ error: safeErrorMessage(error, "Download failed.") });
   }
 });
 

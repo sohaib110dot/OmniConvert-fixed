@@ -1,6 +1,26 @@
 # OmniConvert
 
-Image conversion and compression (JPG, PNG, WEBP, AVIF, SVG) with optional MongoDB, Redis, and R2 storage.
+Image conversion and compression (JPG, PNG, WEBP, AVIF, SVG), basic PDF tools (JPG/PNG ↔ PDF), with optional MongoDB, Redis, and R2 storage.
+
+## Working converters (production)
+
+| Category | Tools |
+|----------|--------|
+| **Image** | JPG/PNG/WEBP/AVIF/SVG cross-conversions |
+| **Compressors** | JPG, PNG, WEBP, AVIF (same-format) |
+| **PDF** | JPG→PDF, PNG→PDF, PDF→JPG, PDF→PNG (first page) |
+
+Video, audio, document (DOCX), archive, and eBook tools are shown as **Coming Soon** until implemented.
+
+## Local file cleanup
+
+When using local storage fallback (`./uploads` volume in Docker), old files are deleted automatically:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `UPLOAD_CLEANUP_HOURS` | `24` | Delete local files older than this many hours |
+
+Cleanup runs on server start and every hour.
 
 ## Run locally
 
@@ -40,6 +60,7 @@ Set these in the service **Environment** tab (use staging values; never commit r
 | `S3_BUCKET` | Optional | Default `omni-convert-uploads` |
 | `S3_PUBLIC_URL` | Optional | Public asset base URL |
 | `GEMINI_API_KEY` | Optional | AI features only |
+| `UPLOAD_CLEANUP_HOURS` | Optional | Local uploads retention (default `24`) |
 
 ### Deploy steps
 
@@ -157,3 +178,9 @@ cd /var/www/omniconvert
 git pull
 docker compose up -d --build
 ```
+
+Optional: set `UPLOAD_CLEANUP_HOURS=24` in `.env` so the `./uploads` volume does not grow forever.
+
+### FFmpeg (future Phase 6)
+
+Audio/video conversion is **not enabled** yet. The Dockerfile includes a commented `ffmpeg` install line for when video/audio backends are added. Do not mark those UI tools as working until FFmpeg pipelines exist.

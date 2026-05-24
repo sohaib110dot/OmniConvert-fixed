@@ -818,21 +818,21 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
       { name: "GIF to MP4", inF: "gif", outF: "mp4", works: false }
     ],
     video: [
-      { name: "MP4 Converter", inF: "mov", outF: "mp4", works: true },
-      { name: "MOV to MP4", inF: "mov", outF: "mp4", works: true },
-      { name: "MKV to MP4", inF: "mkv", outF: "mp4", works: true },
-      { name: "WEBM to MP4", inF: "webm", outF: "mp4", works: true },
-      { name: "MP4 to GIF", inF: "mp4", outF: "gif", works: true },
+      { name: "MP4 Converter", inF: "mov", outF: "mp4", works: false },
+      { name: "MOV to MP4", inF: "mov", outF: "mp4", works: false },
+      { name: "MKV to MP4", inF: "mkv", outF: "mp4", works: false },
+      { name: "WEBM to MP4", inF: "webm", outF: "mp4", works: false },
+      { name: "MP4 to GIF", inF: "mp4", outF: "gif", works: false },
       { name: "Video Compressor", inF: "mp4", outF: "mp4", works: false },
       { name: "Video Trimmer", inF: "mp4", outF: "mp4", works: false },
       { name: "Video Cropper", inF: "mp4", outF: "mp4", works: false },
-      { name: "Video to MP3", inF: "mp4", outF: "mp3", works: true }
+      { name: "Video to MP3", inF: "mp4", outF: "mp3", works: false }
     ],
     audio: [
-      { name: "MP3 Converter", inF: "wav", outF: "mp3", works: true },
-      { name: "WAV to MP3", inF: "wav", outF: "mp3", works: true },
-      { name: "MP4 to MP3", inF: "mp4", outF: "mp3", works: true },
-      { name: "Video to MP3", inF: "mp4", outF: "mp3", works: true },
+      { name: "MP3 Converter", inF: "wav", outF: "mp3", works: false },
+      { name: "WAV to MP3", inF: "wav", outF: "mp3", works: false },
+      { name: "MP4 to MP3", inF: "mp4", outF: "mp3", works: false },
+      { name: "Video to MP3", inF: "mp4", outF: "mp3", works: false },
       { name: "Audio Compressor", inF: "mp3", outF: "mp3", works: false },
       { name: "Audio Trimmer", inF: "mp3", outF: "mp3", works: false }
     ],
@@ -857,17 +857,17 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
       { name: "XLSX to PDF", inF: "xlsx", outF: "pdf", works: false }
     ],
     archive: [
-      { name: "ZIP Converter", inF: "rar", outF: "zip", works: true },
-      { name: "RAR to ZIP", inF: "rar", outF: "zip", works: true },
-      { name: "7Z to ZIP", inF: "7z", outF: "zip", works: true },
-      { name: "TAR to ZIP", inF: "tar", outF: "zip", works: true },
+      { name: "ZIP Converter", inF: "rar", outF: "zip", works: false },
+      { name: "RAR to ZIP", inF: "rar", outF: "zip", works: false },
+      { name: "7Z to ZIP", inF: "7z", outF: "zip", works: false },
+      { name: "TAR to ZIP", inF: "tar", outF: "zip", works: false },
       { name: "Extract Archive", inF: "zip", outF: "txt", works: false }
     ],
     ebook: [
-      { name: "EPUB to PDF", inF: "epub", outF: "pdf", works: true },
+      { name: "EPUB to PDF", inF: "epub", outF: "pdf", works: false },
       { name: "MOBI to EPUB", inF: "mobi", outF: "epub", works: false },
       { name: "AZW3 to EPUB", inF: "azw3", outF: "epub", works: false },
-      { name: "PDF to EPUB", inF: "pdf", outF: "epub", works: true }
+      { name: "PDF to EPUB", inF: "pdf", outF: "epub", works: false }
     ],
     unit: [
       { name: "Length Converter", inF: "m", outF: "ft", works: false },
