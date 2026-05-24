@@ -2,11 +2,9 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# sharp and other native modules may need certs on slim images
-# TODO Phase 6 (FFmpeg): uncomment when audio/video converters are implemented:
-#   apt-get install -y --no-install-recommends ffmpeg
+# sharp, FFmpeg (Phase 6 audio/video converters)
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates \
+  && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./

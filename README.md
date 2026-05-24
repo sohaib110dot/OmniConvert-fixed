@@ -9,8 +9,12 @@ Image conversion and compression (JPG, PNG, WEBP, AVIF, SVG), basic PDF tools (J
 | **Image** | JPG/PNG/WEBP/AVIF/SVG cross-conversions |
 | **Compressors** | JPG, PNG, WEBP, AVIF (same-format) |
 | **PDF** | JPG→PDF, PNG→PDF, PDF→JPG, PDF→PNG (first page) |
+| **Video** | MOV/MKV/WEBM→MP4, MP4→WEBM, MP4→MP3 (FFmpeg) |
+| **Audio** | WAV→MP3, MP3→WAV, MP4→MP3 (FFmpeg) |
 
-Video, audio, document (DOCX), archive, and eBook tools are shown as **Coming Soon** until implemented.
+Document, archive, and eBook tools are shown as **Coming Soon** until implemented.
+
+Requires **FFmpeg** in production (included in Docker image). Optional: `FFMPEG_TIMEOUT_MS` (default 300000 = 5 minutes).
 
 ## Local file cleanup
 
@@ -181,6 +185,6 @@ docker compose up -d --build
 
 Optional: set `UPLOAD_CLEANUP_HOURS=24` in `.env` so the `./uploads` volume does not grow forever.
 
-### FFmpeg (future Phase 6)
+### FFmpeg (Phase 6)
 
-Audio/video conversion is **not enabled** yet. The Dockerfile includes a commented `ffmpeg` install line for when video/audio backends are added. Do not mark those UI tools as working until FFmpeg pipelines exist.
+The Docker image installs `ffmpeg` for video/audio conversion. Temp files are written under `uploads/temp/` and removed after each job.

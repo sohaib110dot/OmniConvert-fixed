@@ -11,6 +11,11 @@ import { updateJobProgress, getJobProgress, getRedis } from "./server/redis.ts";
 import sharp from "sharp";
 import { imageToPdf, pdfToImage, isPdfConverterPair } from "./server/pdfConvert.ts";
 import {
+  convertMedia,
+  isMediaConversion,
+  isMediaConverterSlug,
+} from "./server/mediaConvert.ts";
+import {
   setupSecurity,
   validateUploadFile,
   sanitizeFilename,
@@ -154,6 +159,8 @@ app.post("/api/v1/convert", async (req, res) => {
         const isSupportedConversion = isStandardConversion || isAvifInputConversion || isAvifOutputConversion || isSvgInputConversion;
         const isSupportedPdfConversion =
           converterSlug === "pdf-converter" && isPdfConverterPair(inputExt, targetExt);
+        const isSupportedMediaConversion =
+          isMediaConverterSlug(converterSlug) && isMediaConversion(inputExt, targetExt);
 
         // Compressor: same-format compression for jpg, png, webp, avif
         const isSupportedCompression = converterSlug === "compressor-converter" &&
@@ -176,8 +183,14 @@ app.post("/api/v1/convert", async (req, res) => {
           if (!isSupportedCompression) {
             throw new Error(`unsupported conversion: Unsupported compression format (${inputExt.toUpperCase()}). Supported: JPG, PNG, WEBP, AVIF.`);
           }
+        } else if (isMediaConverterSlug(converterSlug)) {
+          if (!isSupportedMediaConversion) {
+            throw new Error(
+              `unsupported conversion: Unsupported media conversion (${inputExt.toUpperCase()} to ${targetExt.toUpperCase()}). Supported: MP4↔WEBM/MP3, MOV/MKV→MP4, WAV↔MP3.`
+            );
+          }
         } else {
-          throw new Error(`unsupported conversion: Video, audio, document, and archive conversions are coming soon in a future phase.`);
+          throw new Error(`unsupported conversion: This converter type is not supported yet.`);
         }
 
         // 1. Download original file from storage
@@ -205,6 +218,8 @@ app.post("/api/v1/convert", async (req, res) => {
             } else {
               outputBuffer = await pdfToImage(fileBuffer, targetExt as "jpg" | "png", quality || 85);
             }
+          } else if (isMediaConverterSlug(converterSlug)) {
+            outputBuffer = await convertMedia(fileBuffer, inputExt, targetExt);
           } else {
             let sharpImg = sharp(fileBuffer);
 
@@ -227,7 +242,14 @@ app.post("/api/v1/convert", async (req, res) => {
             outputBuffer = await sharpImg.toBuffer();
           }
         } catch (err: any) {
-          const processor = converterSlug === "pdf-converter" ? "PDF" : "sharp";
+          if (err.message?.startsWith("conversion failed:") || err.message?.startsWith("unsupported conversion:")) {
+            throw err;
+          }
+          const processor = converterSlug === "pdf-converter"
+            ? "PDF"
+            : isMediaConverterSlug(converterSlug)
+              ? "FFmpeg"
+              : "sharp";
           throw new Error(`conversion failed: Failed to process file with ${processor}: ${err.message}`);
         }
 
@@ -244,7 +266,7 @@ app.post("/api/v1/convert", async (req, res) => {
           
           uploadResult = await uploadToR2(outputBuffer, outputName, mimeType);
         } catch (err: any) {
-          throw new Error(`conversion failed: Failed to upload converted image to R2: ${err.message}`);
+          throw new Error(`conversion failed: Failed to upload converted file to storage: ${err.message}`);
         }
 
         // 4. Save metadata to MongoDB

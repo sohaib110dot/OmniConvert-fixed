@@ -819,19 +819,21 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
     ],
     video: [
       { name: "MP4 Converter", inF: "mov", outF: "mp4", works: false },
-      { name: "MOV to MP4", inF: "mov", outF: "mp4", works: false },
-      { name: "MKV to MP4", inF: "mkv", outF: "mp4", works: false },
-      { name: "WEBM to MP4", inF: "webm", outF: "mp4", works: false },
+      { name: "MOV to MP4", inF: "mov", outF: "mp4", works: true },
+      { name: "MKV to MP4", inF: "mkv", outF: "mp4", works: true },
+      { name: "WEBM to MP4", inF: "webm", outF: "mp4", works: true },
+      { name: "MP4 to WEBM", inF: "mp4", outF: "webm", works: true },
       { name: "MP4 to GIF", inF: "mp4", outF: "gif", works: false },
       { name: "Video Compressor", inF: "mp4", outF: "mp4", works: false },
       { name: "Video Trimmer", inF: "mp4", outF: "mp4", works: false },
       { name: "Video Cropper", inF: "mp4", outF: "mp4", works: false },
-      { name: "Video to MP3", inF: "mp4", outF: "mp3", works: false }
+      { name: "Video to MP3", inF: "mp4", outF: "mp3", works: true }
     ],
     audio: [
       { name: "MP3 Converter", inF: "wav", outF: "mp3", works: false },
-      { name: "WAV to MP3", inF: "wav", outF: "mp3", works: false },
-      { name: "MP4 to MP3", inF: "mp4", outF: "mp3", works: false },
+      { name: "WAV to MP3", inF: "wav", outF: "mp3", works: true },
+      { name: "MP3 to WAV", inF: "mp3", outF: "wav", works: true },
+      { name: "MP4 to MP3", inF: "mp4", outF: "mp3", works: true },
       { name: "Video to MP3", inF: "mp4", outF: "mp3", works: false },
       { name: "Audio Compressor", inF: "mp3", outF: "mp3", works: false },
       { name: "Audio Trimmer", inF: "mp3", outF: "mp3", works: false }

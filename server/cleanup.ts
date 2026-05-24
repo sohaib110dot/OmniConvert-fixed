@@ -2,9 +2,34 @@ import fs from "fs";
 import path from "path";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
+const TEMP_DIR = path.join(UPLOADS_DIR, "temp");
 
 export function getUploadsDir(): string {
   return UPLOADS_DIR;
+}
+
+/** Remove stale FFmpeg temp job directories. */
+async function cleanupOldTempDirs(maxAgeMs: number, now: number): Promise<number> {
+  if (!fs.existsSync(TEMP_DIR)) return 0;
+
+  let removed = 0;
+  const entries = await fs.promises.readdir(TEMP_DIR, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const dirPath = path.join(TEMP_DIR, entry.name);
+    try {
+      const stat = await fs.promises.stat(dirPath);
+      if (now - stat.mtimeMs > maxAgeMs) {
+        await fs.promises.rm(dirPath, { recursive: true, force: true });
+        removed++;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return removed;
 }
 
 /** Remove local fallback files older than UPLOAD_CLEANUP_HOURS (default 24). */
@@ -36,11 +61,15 @@ export async function cleanupOldUploads(): Promise<{ deleted: number; errors: nu
     }
   }
 
-  if (deleted > 0) {
-    console.log(`[Cleanup] Removed ${deleted} file(s) older than ${hours}h from uploads/`);
+  const tempRemoved = await cleanupOldTempDirs(maxAgeMs, now);
+
+  if (deleted > 0 || tempRemoved > 0) {
+    console.log(
+      `[Cleanup] Removed ${deleted} file(s) and ${tempRemoved} temp dir(s) older than ${hours}h`
+    );
   }
 
-  return { deleted, errors };
+  return { deleted: deleted + tempRemoved, errors };
 }
 
 /** Run cleanup on start and every hour. */
