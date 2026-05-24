@@ -807,15 +807,15 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
       { name: "SVG to PNG", inF: "svg", outF: "png", works: true },
       { name: "SVG to JPG", inF: "svg", outF: "jpg", works: true },
       { name: "SVG to WEBP", inF: "svg", outF: "webp", works: true },
-      { name: "HEIC to JPG", inF: "heic", outF: "jpg", works: false },
+      { name: "HEIC to JPG", inF: "heic", outF: "jpg", works: true },
       { name: "JPG Compressor", inF: "jpg", outF: "jpg", works: true },
       { name: "PNG Compressor", inF: "png", outF: "png", works: true },
       { name: "WEBP Compressor", inF: "webp", outF: "webp", works: true },
       { name: "AVIF Compressor", inF: "avif", outF: "avif", works: true },
-      { name: "Image Resizer", inF: "jpg", outF: "jpg", works: false },
-      { name: "Image Cropper", inF: "jpg", outF: "jpg", works: false },
-      { name: "GIF Compressor", inF: "gif", outF: "gif", works: false },
-      { name: "GIF to MP4", inF: "gif", outF: "mp4", works: false }
+      { name: "Image Resizer", inF: "jpg", outF: "jpg", works: true },
+      { name: "Image Cropper", inF: "jpg", outF: "jpg", works: true },
+      { name: "GIF Compressor", inF: "gif", outF: "gif", works: true },
+      { name: "GIF to MP4", inF: "gif", outF: "mp4", works: true }
     ],
     video: [
       { name: "MP4 Converter", inF: "mov", outF: "mp4", works: false },

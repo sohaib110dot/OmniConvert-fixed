@@ -24,6 +24,8 @@ const MEDIA_PAIRS: ReadonlyArray<{ input: string; output: string }> = [
   { input: "mkv", output: "mp4" },
   { input: "wav", output: "mp3" },
   { input: "mp3", output: "wav" },
+  { input: "gif", output: "gif" },
+  { input: "gif", output: "mp4" },
 ];
 
 export type MediaProgressCallback = (progress: number) => void | Promise<void>;
@@ -116,6 +118,26 @@ function buildFfmpegArgs(
       return [...base, "-acodec", "libmp3lame", "-q:a", "2", outputPath];
     case "mp3->wav":
       return [...base, "-acodec", "pcm_s16le", outputPath];
+    case "gif->gif":
+      return [
+        ...base,
+        "-vf",
+        "fps=10,scale=iw:-1",
+        "-loop",
+        "0",
+        outputPath,
+      ];
+    case "gif->mp4":
+      return [
+        ...base,
+        "-movflags",
+        "faststart",
+        "-pix_fmt",
+        "yuv420p",
+        "-vf",
+        "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+        outputPath,
+      ];
     default:
       throw new Error(
         `unsupported conversion: Media conversion ${inputExt.toUpperCase()} to ${outputExt.toUpperCase()} is not supported.`

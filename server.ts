@@ -156,12 +156,19 @@ app.post("/api/v1/convert", async (req, res) => {
         const isAvifInputConversion = inputExt === "avif" && ["jpg", "png", "webp"].includes(targetExt);
         const isAvifOutputConversion = ["jpg", "png", "webp"].includes(inputExt) && targetExt === "avif";
         const isSvgInputConversion = inputExt === "svg" && ["jpg", "png", "webp"].includes(targetExt);
+        const isHeicConversion = inputExt === "heic" && ["jpg", "png", "webp"].includes(targetExt);
 
-        const isSupportedConversion = isStandardConversion || isAvifInputConversion || isAvifOutputConversion || isSvgInputConversion;
+        const isSupportedConversion = isStandardConversion || isAvifInputConversion || isAvifOutputConversion || isSvgInputConversion || isHeicConversion;
         const isSupportedPdfConversion =
           converterSlug === "pdf-converter" && isPdfConverterPair(inputExt, targetExt);
         const isSupportedMediaConversion =
           isMediaConverterSlug(converterSlug) && isMediaConversion(inputExt, targetExt);
+        const isGifConversion =
+          converterSlug === "gif-converter" && inputExt === "gif" && ["gif", "mp4"].includes(targetExt);
+        const isImageResizer =
+          converterSlug === "image-resizer" && ["jpg", "png", "webp"].includes(inputExt) && ["jpg", "png", "webp"].includes(targetExt);
+        const isImageCropper =
+          converterSlug === "image-cropper" && ["jpg", "png", "webp"].includes(inputExt) && ["jpg", "png", "webp"].includes(targetExt);
 
         // Compressor: same-format compression for jpg, png, webp, avif
         const isSupportedCompression = converterSlug === "compressor-converter" &&
@@ -183,6 +190,18 @@ app.post("/api/v1/convert", async (req, res) => {
         } else if (converterSlug === "compressor-converter") {
           if (!isSupportedCompression) {
             throw new Error(`unsupported conversion: Unsupported compression format (${inputExt.toUpperCase()}). Supported: JPG, PNG, WEBP, AVIF.`);
+          }
+        } else if (converterSlug === "image-resizer") {
+          if (!isImageResizer) {
+            throw new Error(`unsupported conversion: Unsupported resize operation (${inputExt.toUpperCase()} to ${targetExt.toUpperCase()}). Supported: JPG/PNG/WEBP to JPG/PNG/WEBP.`);
+          }
+        } else if (converterSlug === "image-cropper") {
+          if (!isImageCropper) {
+            throw new Error(`unsupported conversion: Unsupported crop operation (${inputExt.toUpperCase()} to ${targetExt.toUpperCase()}). Supported: JPG/PNG/WEBP to JPG/PNG/WEBP.`);
+          }
+        } else if (converterSlug === "gif-converter") {
+          if (!isGifConversion) {
+            throw new Error(`unsupported conversion: Unsupported GIF conversion (${inputExt.toUpperCase()} to ${targetExt.toUpperCase()}). Supported: GIF to GIF/MP4.`);
           }
         } else if (isMediaConverterSlug(converterSlug)) {
           if (!isSupportedMediaConversion) {
@@ -254,7 +273,7 @@ app.post("/api/v1/convert", async (req, res) => {
               outputExtForJob = pdfResult.outputExt;
               outputFileName = pdfResult.outputFileName;
             }
-          } else if (isMediaConverterSlug(converterSlug)) {
+          } else if (isMediaConverterSlug(converterSlug) || converterSlug === "gif-converter") {
             outputBuffer = await convertMedia(
               fileBuffer,
               inputExt,
@@ -267,6 +286,38 @@ app.post("/api/v1/convert", async (req, res) => {
                 await updateJobProgress(jobId, encodeProgress, "processing");
               }
             );
+          } else if (converterSlug === "image-resizer") {
+            const width = options?.width ? parseInt(options.width, 10) : undefined;
+            const height = options?.height ? parseInt(options.height, 10) : undefined;
+            if (!width || !height) {
+              throw new Error("invalid options: Image Resizer requires width and height parameters.");
+            }
+            let sharpImg = sharp(fileBuffer).resize(width, height, { fit: 'inside', withoutEnlargement: true });
+            if (targetExt === "jpg") {
+              sharpImg = sharpImg.jpeg({ quality: quality || 85, mozjpeg: true });
+            } else if (targetExt === "png") {
+              sharpImg = sharpImg.png();
+            } else if (targetExt === "webp") {
+              sharpImg = sharpImg.webp({ quality: quality || 75 });
+            }
+            outputBuffer = await sharpImg.toBuffer();
+          } else if (converterSlug === "image-cropper") {
+            const x = options?.x ? parseInt(options.x, 10) : undefined;
+            const y = options?.y ? parseInt(options.y, 10) : undefined;
+            const cropWidth = options?.width ? parseInt(options.width, 10) : undefined;
+            const cropHeight = options?.height ? parseInt(options.height, 10) : undefined;
+            if (x === undefined || y === undefined || !cropWidth || !cropHeight) {
+              throw new Error("invalid options: Image Cropper requires x, y, width, and height parameters.");
+            }
+            let sharpImg = sharp(fileBuffer).extract({ left: x, top: y, width: cropWidth, height: cropHeight });
+            if (targetExt === "jpg") {
+              sharpImg = sharpImg.jpeg({ quality: quality || 85, mozjpeg: true });
+            } else if (targetExt === "png") {
+              sharpImg = sharpImg.png();
+            } else if (targetExt === "webp") {
+              sharpImg = sharpImg.webp({ quality: quality || 75 });
+            }
+            outputBuffer = await sharpImg.toBuffer();
           } else {
             let sharpImg = sharp(fileBuffer);
 
@@ -466,6 +517,7 @@ const mimeTypes: Record<string, string> = {
   'avif': 'image/avif',
   'svg': 'image/svg+xml',
   'gif': 'image/gif',
+  'heic': 'image/heic',
   'pdf': 'application/pdf',
   'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'zip': 'application/zip',

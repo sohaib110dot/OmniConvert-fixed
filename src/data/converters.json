@@ -50,6 +50,52 @@
       "page_url": "/converters/image"
     },
     {
+      "id": "image-resizer",
+      "slug": "image-resizer",
+      "name": "Image Resizer",
+      "category": "image",
+      "supported_inputs": ["jpg", "png", "webp"],
+      "supported_outputs": ["jpg", "png", "webp"],
+      "advanced_options": {
+        "width": "number",
+        "height": "number"
+      },
+      "batch_supported": true,
+      "example_formats": ["Resize JPG", "Resize PNG"],
+      "page_url": "/converters/image"
+    },
+    {
+      "id": "image-cropper",
+      "slug": "image-cropper",
+      "name": "Image Cropper",
+      "category": "image",
+      "supported_inputs": ["jpg", "png", "webp"],
+      "supported_outputs": ["jpg", "png", "webp"],
+      "advanced_options": {
+        "x": "number",
+        "y": "number",
+        "width": "number",
+        "height": "number"
+      },
+      "batch_supported": true,
+      "example_formats": ["Crop JPG", "Crop PNG"],
+      "page_url": "/converters/image"
+    },
+    {
+      "id": "gif-converter",
+      "slug": "gif-converter",
+      "name": "GIF Converter",
+      "category": "image",
+      "supported_inputs": ["gif"],
+      "supported_outputs": ["gif", "mp4"],
+      "advanced_options": {
+        "quality": [70, 80, 90, 100]
+      },
+      "batch_supported": true,
+      "example_formats": ["GIF to MP4", "Compress GIF"],
+      "page_url": "/converters/image"
+    },
+    {
       "id": "pdf",
       "slug": "pdf-converter",
       "name": "PDF Converter",
