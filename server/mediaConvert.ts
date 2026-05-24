@@ -1,4 +1,4 @@
-import { execFile } from "child_process";
+import { spawn, execFile } from "child_process";
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
@@ -9,10 +9,11 @@ const execFileAsync = promisify(execFile);
 
 const TEMP_SUBDIR = "temp";
 const envTimeout = Number(process.env.FFMPEG_TIMEOUT_MS);
-const DEFAULT_TIMEOUT_MS =
-  envTimeout > 0 ? envTimeout : 5 * 60 * 1000;
+/** Default 15 min for long VPS encodes; override with FFMPEG_TIMEOUT_MS. */
+const DEFAULT_TIMEOUT_MS = envTimeout > 0 ? envTimeout : 900000;
 
 const SAFE_EXT = /^[a-z0-9]+$/;
+const PROGRESS_THROTTLE_MS = 1500;
 
 /** Phase 6 supported media conversions. */
 const MEDIA_PAIRS: ReadonlyArray<{ input: string; output: string }> = [
@@ -24,6 +25,8 @@ const MEDIA_PAIRS: ReadonlyArray<{ input: string; output: string }> = [
   { input: "wav", output: "mp3" },
   { input: "mp3", output: "wav" },
 ];
+
+export type MediaProgressCallback = (progress: number) => void | Promise<void>;
 
 export function isMediaConverterSlug(slug: string): boolean {
   return slug === "video-converter" || slug === "audio-converter";
@@ -43,13 +46,24 @@ function assertSafeExt(ext: string, label: string): void {
   }
 }
 
+/** Progress + stats flags required for spawn stdout parsing. */
+const FFMPEG_PROGRESS_FLAGS = ["-progress", "pipe:1", "-nostats"] as const;
+
 function buildFfmpegArgs(
   inputPath: string,
   outputPath: string,
   inputExt: string,
   outputExt: string
 ): string[] {
-  const base = ["-y", "-hide_banner", "-loglevel", "error", "-i", inputPath];
+  const base = [
+    "-y",
+    "-hide_banner",
+    ...FFMPEG_PROGRESS_FLAGS,
+    "-loglevel",
+    "error",
+    "-i",
+    inputPath,
+  ];
   const key = `${inputExt}->${outputExt}`;
 
   switch (key) {
@@ -59,6 +73,8 @@ function buildFfmpegArgs(
     case "mp4->webm":
       return [
         ...base,
+        "-vf",
+        "scale='min(1280,iw)':-2",
         "-c:v",
         "libvpx",
         "-deadline",
@@ -107,36 +123,145 @@ function buildFfmpegArgs(
   }
 }
 
-async function runFfmpeg(args: string[]): Promise<void> {
+async function getMediaDuration(inputPath: string): Promise<number> {
   try {
-    await execFileAsync("ffmpeg", args, {
-      timeout: DEFAULT_TIMEOUT_MS,
-      maxBuffer: 10 * 1024 * 1024,
-    });
-  } catch (err: unknown) {
-    const e = err as { killed?: boolean; message?: string; stderr?: string };
-    if (e.killed) {
-      throw new Error(
-        "conversion failed: Video conversion timed out. Try a shorter clip, smaller file, or choose MP4 instead of WEBM."
-      );
-    }
-    const detail = (e.stderr || e.message || "").toString().trim();
-    if (/ffmpeg|not found|ENOENT/i.test(detail)) {
-      throw new Error(
-        "conversion failed: FFmpeg is not available on the server."
-      );
-    }
-    throw new Error(
-      `conversion failed: FFmpeg could not convert this file.${detail ? ` ${detail.slice(0, 200)}` : ""}`
-    );
+    const { stdout } = await execFileAsync("ffprobe", [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      inputPath,
+    ]);
+    const duration = parseFloat(String(stdout).trim());
+    return Number.isFinite(duration) && duration > 0 ? duration : 0;
+  } catch {
+    return 0;
   }
 }
 
-/** Convert audio/video using FFmpeg; temp files live under uploads/temp/. */
+function parseOutTimeSeconds(line: string): number | null {
+  const msMatch = line.match(/out_time_ms=(\d+)/);
+  if (msMatch) {
+    return Number(msMatch[1]) / 1_000_000;
+  }
+
+  const timeMatch = line.match(/out_time=(\d{2}):(\d{2}):(\d{2})\.(\d+)/);
+  if (timeMatch) {
+    const h = Number(timeMatch[1]);
+    const m = Number(timeMatch[2]);
+    const s = Number(timeMatch[3]);
+    const frac = Number(`0.${timeMatch[4]}`);
+    return h * 3600 + m * 60 + s + frac;
+  }
+
+  return null;
+}
+
+function mapEncodeProgress(currentSec: number, totalDuration: number): number {
+  if (totalDuration <= 0) return 40;
+  const raw = Math.min(1, Math.max(0, currentSec / totalDuration));
+  return Math.min(85, Math.max(40, Math.round(40 + raw * 45)));
+}
+
+function runFfmpeg(
+  args: string[],
+  totalDuration: number,
+  onProgress?: MediaProgressCallback
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("ffmpeg", args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+
+    let stderr = "";
+    let stdoutBuf = "";
+    let lastProgressAt = 0;
+    let timedOut = false;
+
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      proc.kill("SIGKILL");
+    }, DEFAULT_TIMEOUT_MS);
+
+    const flushProgress = async (currentSec: number) => {
+      if (!onProgress || totalDuration <= 0) return;
+      const now = Date.now();
+      if (now - lastProgressAt < PROGRESS_THROTTLE_MS) return;
+      lastProgressAt = now;
+      const mapped = mapEncodeProgress(currentSec, totalDuration);
+      try {
+        await onProgress(mapped);
+      } catch (err) {
+        console.error("[FFmpeg] Progress callback error:", err);
+      }
+    };
+
+    proc.stdout?.on("data", (chunk: Buffer) => {
+      stdoutBuf += chunk.toString();
+      const lines = stdoutBuf.split("\n");
+      stdoutBuf = lines.pop() || "";
+
+      for (const line of lines) {
+        const currentSec = parseOutTimeSeconds(line);
+        if (currentSec !== null) {
+          void flushProgress(currentSec);
+        }
+      }
+    });
+
+    proc.stderr?.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+      if (stderr.length > 32_000) {
+        stderr = stderr.slice(-32_000);
+      }
+    });
+
+    proc.on("error", (err) => {
+      clearTimeout(timeoutId);
+      console.error("[FFmpeg] Spawn error:", err.message);
+      reject(
+        new Error(
+          "conversion failed: FFmpeg is not available on the server."
+        )
+      );
+    });
+
+    proc.on("close", (code) => {
+      clearTimeout(timeoutId);
+
+      if (timedOut) {
+        reject(
+          new Error(
+            "conversion failed: Conversion timed out. Try a shorter clip, smaller file, or choose MP4 instead of WEBM."
+          )
+        );
+        return;
+      }
+
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      const detail = stderr.trim().slice(0, 200);
+      reject(
+        new Error(
+          `conversion failed: FFmpeg could not convert this file.${detail ? ` ${detail}` : ""}`
+        )
+      );
+    });
+  });
+}
+
+/** Convert audio/video using FFmpeg (spawn + progress); temp files under uploads/temp/. */
 export async function convertMedia(
   inputBuffer: Buffer,
   inputExt: string,
-  outputExt: string
+  outputExt: string,
+  onProgress?: MediaProgressCallback
 ): Promise<Buffer> {
   assertSafeExt(inputExt, "input");
   assertSafeExt(outputExt, "output");
@@ -158,8 +283,9 @@ export async function convertMedia(
 
   try {
     await fs.promises.writeFile(inputPath, inputBuffer);
+    const totalDuration = await getMediaDuration(inputPath);
     const args = buildFfmpegArgs(inputPath, outputPath, inputExt, outputExt);
-    await runFfmpeg(args);
+    await runFfmpeg(args, totalDuration, onProgress);
 
     if (!fs.existsSync(outputPath)) {
       throw new Error("conversion failed: FFmpeg did not produce an output file.");

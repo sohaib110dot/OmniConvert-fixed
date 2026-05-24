@@ -386,9 +386,11 @@ function MainApp() {
             };
           });
 
-          if (data.status === "done" || data.status === "error") {
+          if (data.status === "done") {
             clearInterval(interval);
-            if (data.status === "error" && data.error) {
+          } else if (data.status === "error") {
+            clearInterval(interval);
+            if (data.error) {
               setError(data.error);
             }
           }

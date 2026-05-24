@@ -220,7 +220,18 @@ app.post("/api/v1/convert", async (req, res) => {
               outputBuffer = await pdfToImage(fileBuffer, targetExt as "jpg" | "png", quality || 85);
             }
           } else if (isMediaConverterSlug(converterSlug)) {
-            outputBuffer = await convertMedia(fileBuffer, inputExt, targetExt);
+            outputBuffer = await convertMedia(
+              fileBuffer,
+              inputExt,
+              targetExt,
+              async (encodeProgress) => {
+                await repo.updateJob(jobId, {
+                  progress: encodeProgress,
+                  status: "processing",
+                });
+                await updateJobProgress(jobId, encodeProgress, "processing");
+              }
+            );
           } else {
             let sharpImg = sharp(fileBuffer);
 
@@ -360,7 +371,7 @@ app.get("/api/v1/status/:jobId", async (req, res) => {
         eta = "Completed";
       } else {
         status = "processing";
-        progress = redisResult.progress;
+        progress = Math.max(redisResult.progress, job.progress ?? 0);
         if (isMediaJob && progress >= 40 && progress < 100) {
           eta = "Large files may take 5–15 minutes depending on format.";
         }
