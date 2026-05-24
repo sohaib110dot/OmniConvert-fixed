@@ -9,6 +9,7 @@ import { connectDB, Upload, ConversionJob, getDBStatus } from "./server/db.ts";
 import { uploadToR2, downloadFromR2 } from "./server/storage.ts";
 import { updateJobProgress, getJobProgress, getRedis } from "./server/redis.ts";
 import sharp from "sharp";
+import { imageToPdf, pdfToImage, isPdfConverterPair } from "./server/pdfConvert.ts";
 
 dotenv.config();
 
@@ -139,6 +140,8 @@ app.post("/api/v1/convert", async (req, res) => {
         const isSvgInputConversion = inputExt === "svg" && ["jpg", "png", "webp"].includes(targetExt);
 
         const isSupportedConversion = isStandardConversion || isAvifInputConversion || isAvifOutputConversion || isSvgInputConversion;
+        const isSupportedPdfConversion =
+          converterSlug === "pdf-converter" && isPdfConverterPair(inputExt, targetExt);
 
         // Compressor: same-format compression for jpg, png, webp, avif
         const isSupportedCompression = converterSlug === "compressor-converter" &&
@@ -146,7 +149,11 @@ app.post("/api/v1/convert", async (req, res) => {
           inputExt === targetExt;
 
         // Validate formats and categories
-        if (converterSlug === "image-converter") {
+        if (converterSlug === "pdf-converter") {
+          if (!isSupportedPdfConversion) {
+            throw new Error(`unsupported conversion: Unsupported PDF conversion (${inputExt.toUpperCase()} to ${targetExt.toUpperCase()}). Supported: JPG/PNG to PDF, PDF to JPG/PNG.`);
+          }
+        } else if (converterSlug === "image-converter") {
           if (!isSupportedConversion) {
             throw new Error(`unsupported conversion: Unsupported image conversion combination (${inputExt.toUpperCase()} to ${targetExt.toUpperCase()}).`);
           }
@@ -172,38 +179,44 @@ app.post("/api/v1/convert", async (req, res) => {
         await repo.updateJob(jobId, { progress: 10 });
         await updateJobProgress(jobId, 10, "processing");
 
-        // 2. Process with Sharp
+        // 2. Convert file
         await repo.updateJob(jobId, { progress: 40 });
         await updateJobProgress(jobId, 40, "processing");
 
         let outputBuffer: Buffer;
+        const quality = options?.quality ? parseInt(options.quality, 10) : undefined;
+
         try {
-          let sharpImg = sharp(fileBuffer);
-          const quality = options?.quality ? parseInt(options.quality, 10) : undefined;
-
-          if (targetExt === "jpg") {
-            // For compressor: quality 80; for converter: quality 85
-            const jpgQuality = converterSlug === "compressor-converter" ? (quality || 80) : (quality || 85);
-            sharpImg = sharpImg.jpeg({ quality: jpgQuality, mozjpeg: true });
-          } else if (targetExt === "png") {
-            // For compressor: compressionLevel 9; for converter: default
-            const pngLevel = converterSlug === "compressor-converter" ? 9 : undefined;
-            sharpImg = sharpImg.png({ compressionLevel: pngLevel });
-          } else if (targetExt === "webp") {
-            // For compressor: quality 75 effort 2; for converter: quality 75 effort 2
-            sharpImg = sharpImg.webp({ quality: quality || 75, effort: 2 });
-          } else if (targetExt === "avif") {
-            // For compressor: quality 55 effort 2; for converter: quality 65
-            const avifQuality = converterSlug === "compressor-converter" ? (quality || 55) : (quality || 65);
-            const avifEffort = converterSlug === "compressor-converter" ? 2 : undefined;
-            sharpImg = sharpImg.avif({ quality: avifQuality, effort: avifEffort });
+          if (converterSlug === "pdf-converter") {
+            if (targetExt === "pdf") {
+              outputBuffer = await imageToPdf(fileBuffer, inputExt as "jpg" | "png");
+            } else {
+              outputBuffer = await pdfToImage(fileBuffer, targetExt as "jpg" | "png", quality || 85);
+            }
           } else {
-            throw new Error(`Unsupported format: ${targetExt}`);
-          }
+            let sharpImg = sharp(fileBuffer);
 
-          outputBuffer = await sharpImg.toBuffer();
+            if (targetExt === "jpg") {
+              const jpgQuality = converterSlug === "compressor-converter" ? (quality || 80) : (quality || 85);
+              sharpImg = sharpImg.jpeg({ quality: jpgQuality, mozjpeg: true });
+            } else if (targetExt === "png") {
+              const pngLevel = converterSlug === "compressor-converter" ? 9 : undefined;
+              sharpImg = sharpImg.png({ compressionLevel: pngLevel });
+            } else if (targetExt === "webp") {
+              sharpImg = sharpImg.webp({ quality: quality || 75, effort: 2 });
+            } else if (targetExt === "avif") {
+              const avifQuality = converterSlug === "compressor-converter" ? (quality || 55) : (quality || 65);
+              const avifEffort = converterSlug === "compressor-converter" ? 2 : undefined;
+              sharpImg = sharpImg.avif({ quality: avifQuality, effort: avifEffort });
+            } else {
+              throw new Error(`Unsupported format: ${targetExt}`);
+            }
+
+            outputBuffer = await sharpImg.toBuffer();
+          }
         } catch (err: any) {
-          throw new Error(`conversion failed: Failed to process image with sharp: ${err.message}`);
+          const processor = converterSlug === "pdf-converter" ? "PDF" : "sharp";
+          throw new Error(`conversion failed: Failed to process file with ${processor}: ${err.message}`);
         }
 
         await repo.updateJob(jobId, { progress: 80 });
@@ -361,10 +374,6 @@ app.get("/api/v1/download/:jobId", async (req, res) => {
       return res.redirect('https://www.w3schools.com/html/horse.mp3');
     }
 
-    if (format === 'pdf') {
-      return res.redirect('https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf');
-    }
-    
     const dummyContent = Buffer.from(`OmniConvert Integrated Output\nFormat: ${format}\nConversion ID: ${req.params.jobId}\nThis file was successfully processed using our integrated backend.`);
     
     res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);

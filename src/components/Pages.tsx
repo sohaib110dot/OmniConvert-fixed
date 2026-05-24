@@ -837,22 +837,24 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
       { name: "Audio Trimmer", inF: "mp3", outF: "mp3", works: false }
     ],
     pdf: [
-      { name: "PDF to JPG", inF: "pdf", outF: "jpg", works: true },
       { name: "JPG to PDF", inF: "jpg", outF: "pdf", works: true },
-      { name: "PDF to Word", inF: "pdf", outF: "docx", works: true },
-      { name: "Word to PDF", inF: "docx", outF: "pdf", works: true },
+      { name: "PNG to PDF", inF: "png", outF: "pdf", works: true },
+      { name: "PDF to JPG", inF: "pdf", outF: "jpg", works: true },
+      { name: "PDF to PNG", inF: "pdf", outF: "png", works: true },
+      { name: "PDF to Word", inF: "pdf", outF: "docx", works: false },
+      { name: "Word to PDF", inF: "docx", outF: "pdf", works: false },
       { name: "Compress PDF", inF: "pdf", outF: "pdf", works: false },
       { name: "Merge PDF", inF: "pdf", outF: "pdf", works: false },
       { name: "Split PDF", inF: "pdf", outF: "pdf", works: false },
       { name: "PDF OCR", inF: "pdf", outF: "pdf", works: false }
     ],
     document: [
-      { name: "DOCX to PDF", inF: "docx", outF: "pdf", works: true },
-      { name: "TXT to PDF", inF: "txt", outF: "pdf", works: true },
-      { name: "PDF to DOCX", inF: "pdf", outF: "docx", works: true },
-      { name: "ODT to PDF", inF: "odt", outF: "pdf", works: true },
-      { name: "PPTX to PDF", inF: "pptx", outF: "pdf", works: true },
-      { name: "XLSX to PDF", inF: "xlsx", outF: "pdf", works: true }
+      { name: "DOCX to PDF", inF: "docx", outF: "pdf", works: false },
+      { name: "TXT to PDF", inF: "txt", outF: "pdf", works: false },
+      { name: "PDF to DOCX", inF: "pdf", outF: "docx", works: false },
+      { name: "ODT to PDF", inF: "odt", outF: "pdf", works: false },
+      { name: "PPTX to PDF", inF: "pptx", outF: "pdf", works: false },
+      { name: "XLSX to PDF", inF: "xlsx", outF: "pdf", works: false }
     ],
     archive: [
       { name: "ZIP Converter", inF: "rar", outF: "zip", works: true },

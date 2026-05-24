@@ -50,6 +50,21 @@
       "page_url": "/converters/image"
     },
     {
+      "id": "pdf",
+      "slug": "pdf-converter",
+      "name": "PDF Converter",
+      "category": "pdf",
+      "supported_inputs": ["pdf", "jpg", "png", "jpeg"],
+      "supported_outputs": ["pdf", "jpg", "png", "jpeg"],
+      "advanced_options": {
+        "page_range": "first",
+        "quality": [70, 80, 90, 100]
+      },
+      "batch_supported": true,
+      "example_formats": ["JPG to PDF", "PDF to PNG"],
+      "page_url": "/converters/pdf"
+    },
+    {
       "id": "document",
       "slug": "document-converter",
       "name": "Document Converter",
