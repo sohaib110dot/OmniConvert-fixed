@@ -59,6 +59,7 @@ const ConversionJobSchema = new mongoose.Schema({
   progress: { type: Number, default: 0 },
   downloadUrl: { type: String },
   outputFormat: { type: String },
+  outputFileName: { type: String },
   outputStorageKey: { type: String },
   outputFileSize: { type: Number },
   error: { type: String },

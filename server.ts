@@ -9,7 +9,7 @@ import { connectDB, Upload, ConversionJob, getDBStatus } from "./server/db.ts";
 import { uploadToR2, downloadFromR2 } from "./server/storage.ts";
 import { updateJobProgress, getJobProgress, getRedis } from "./server/redis.ts";
 import sharp from "sharp";
-import { imageToPdf, pdfToImage, isPdfConverterPair } from "./server/pdfConvert.ts";
+import { imageToPdf, pdfToImages, isPdfConverterPair } from "./server/pdfConvert.ts";
 import {
   convertMedia,
   isMediaConversion,
@@ -210,14 +210,33 @@ app.post("/api/v1/convert", async (req, res) => {
         await updateJobProgress(jobId, 40, "processing");
 
         let outputBuffer: Buffer;
+        let outputExtForJob = targetExt;
+        let outputFileName: string | undefined;
         const quality = options?.quality ? parseInt(options.quality, 10) : undefined;
+        const fileBaseName =
+          uploadRef.originalName.split(".").slice(0, -1).join(".") || "document";
 
         try {
           if (converterSlug === "pdf-converter") {
             if (targetExt === "pdf") {
               outputBuffer = await imageToPdf(fileBuffer, inputExt as "jpg" | "png");
             } else {
-              outputBuffer = await pdfToImage(fileBuffer, targetExt as "jpg" | "png", quality || 85);
+              const pdfResult = await pdfToImages(
+                fileBuffer,
+                targetExt as "jpg" | "png",
+                quality || 85,
+                fileBaseName,
+                async (pageProgress) => {
+                  await repo.updateJob(jobId, {
+                    progress: pageProgress,
+                    status: "processing",
+                  });
+                  await updateJobProgress(jobId, pageProgress, "processing");
+                }
+              );
+              outputBuffer = pdfResult.buffer;
+              outputExtForJob = pdfResult.outputExt;
+              outputFileName = pdfResult.outputFileName;
             }
           } else if (isMediaConverterSlug(converterSlug)) {
             outputBuffer = await convertMedia(
@@ -271,12 +290,13 @@ app.post("/api/v1/convert", async (req, res) => {
         // 3. Upload converted output to storage
         let uploadResult;
         try {
-          const baseName = uploadRef.originalName.split('.').slice(0, -1).join('.');
           const outputPrefix = converterSlug === "compressor-converter" ? "compressed" : "converted";
-          const outputName = `${outputPrefix}_${baseName}.${targetExt}`;
-          const mimeType = mimeTypes[targetExt] || "application/octet-stream";
-          
-          uploadResult = await uploadToR2(outputBuffer, outputName, mimeType);
+          const storageName = outputFileName
+            ? `${outputPrefix}_${outputFileName}`
+            : `${outputPrefix}_${fileBaseName}.${outputExtForJob}`;
+          const mimeType = mimeTypes[outputExtForJob] || "application/octet-stream";
+
+          uploadResult = await uploadToR2(outputBuffer, storageName, mimeType);
         } catch (err: any) {
           throw new Error(`conversion failed: Failed to upload converted file to storage: ${err.message}`);
         }
@@ -284,13 +304,14 @@ app.post("/api/v1/convert", async (req, res) => {
         // 4. Save metadata to MongoDB
         try {
           await repo.updateJob(jobId, {
-            outputFormat: targetExt,
+            outputFormat: outputExtForJob,
+            outputFileName: outputFileName || undefined,
             outputStorageKey: uploadResult.key,
             outputFileSize: outputBuffer.length,
             status: "completed",
             progress: 100,
             downloadUrl: `/api/v1/download/${jobId}`,
-            error: null
+            error: null,
           });
         } catch (err: any) {
           throw new Error(`database error: Failed to save output metadata in MongoDB: ${err.message}`);
@@ -447,7 +468,9 @@ app.get("/api/v1/download/:jobId", async (req, res) => {
     const baseName = inputName.split('.').slice(0, -1).join('.');
     // Use compressed_ prefix for compressor jobs (output key contains "compressed_")
     const isCompressorJob = job.outputStorageKey?.includes('compressed_') ?? false;
-    const downloadName = `${isCompressorJob ? 'compressed' : 'converted'}_${baseName}.${format}`;
+    const downloadName = job.outputFileName
+      ? `${isCompressorJob ? "compressed" : "converted"}_${job.outputFileName}`
+      : `${isCompressorJob ? "compressed" : "converted"}_${baseName}.${format}`;
 
     // If there is an outputStorageKey, fetch and send the real file from storage
     if (job.outputStorageKey) {
