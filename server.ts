@@ -136,7 +136,8 @@ app.post("/api/v1/convert", async (req, res) => {
     const job = await repo.createJob({
       uploadId: fileId,
       targetFormat: outputFormat,
-      status: "queued"
+      converterSlug: converterSlug || undefined,
+      status: "queued",
     });
 
     const jobId = job._id.toString();
@@ -289,18 +290,22 @@ app.post("/api/v1/convert", async (req, res) => {
       } catch (err: any) {
         console.error("Conversion worker failed:", err.message);
         const errorMsg = err.message || "An unexpected error occurred.";
-        
+
         try {
           await repo.updateJob(jobId, {
             status: "failed",
             error: errorMsg,
-            progress: 0
+            progress: 0,
           });
         } catch (dbErr: any) {
           console.error("Failed to mark job as failed in DB:", dbErr.message);
         }
-        
-        await updateJobProgress(jobId, 0, "failed");
+
+        try {
+          await updateJobProgress(jobId, 0, "failed");
+        } catch (redisErr: any) {
+          console.error("Failed to mark job as failed in Redis:", redisErr.message);
+        }
       }
     })();
 
@@ -319,20 +324,62 @@ app.get("/api/v1/status/:jobId", async (req, res) => {
     const job = await repo.findJobById(req.params.jobId);
     if (!job) return res.status(404).json({ error: "Job not found" });
 
-    // 3. Determine status, progress, eta with Redis fallback
-    let status = "processing";
-    let progress = 0;
+    const isMediaJob =
+      job.converterSlug === "video-converter" ||
+      job.converterSlug === "audio-converter";
+    const rawError = job.error ? String(job.error) : null;
+    const error = rawError
+      ? rawError.replace(/^conversion failed:\s*/i, "").trim()
+      : null;
+
+    let status: "processing" | "done" | "error" = "processing";
+    let progress = job.progress ?? 0;
     let eta = "Calculating...";
 
-    if (redisResult && typeof redisResult.progress === "number" && redisResult.status) {
-      status = (redisResult.status === "completed" || job.status === "completed") ? "done" : (redisResult.status === "failed" || job.status === "failed" ? "error" : "processing");
-      progress = redisResult.progress;
-      eta = (redisResult.status === "completed" || job.status === "completed") ? "Completed" : "Calculating...";
+    // Terminal DB states override stale Redis progress (e.g. stuck at 40%)
+    if (job.status === "completed") {
+      status = "done";
+      progress = 100;
+      eta = "Completed";
+    } else if (job.status === "failed") {
+      status = "error";
+      progress = 0;
+      eta = error || "Conversion failed";
+    } else if (
+      redisResult &&
+      typeof redisResult.progress === "number" &&
+      redisResult.status
+    ) {
+      if (redisResult.status === "failed") {
+        status = "error";
+        progress = 0;
+        eta = error || "Conversion failed";
+      } else if (redisResult.status === "completed") {
+        status = "done";
+        progress = 100;
+        eta = "Completed";
+      } else {
+        status = "processing";
+        progress = redisResult.progress;
+        if (isMediaJob && progress >= 40 && progress < 100) {
+          eta = "Large files may take 5–15 minutes depending on format.";
+        }
+      }
     } else {
-      // Redis missing, fallback to repo DB job info
-      status = job.status === "completed" ? "done" : (job.status === "failed" ? "error" : "processing");
+      status =
+        job.status === "completed"
+          ? "done"
+          : job.status === "failed"
+            ? "error"
+            : "processing";
       progress = job.progress || 0;
-      eta = job.status === "completed" ? "Completed" : "Calculating...";
+      if (status === "done") {
+        eta = "Completed";
+      } else if (status === "error") {
+        eta = error || "Conversion failed";
+      } else if (isMediaJob && progress >= 40) {
+        eta = "Large files may take 5–15 minutes depending on format.";
+      }
     }
 
     res.json({
@@ -340,9 +387,13 @@ app.get("/api/v1/status/:jobId", async (req, res) => {
       status,
       progress,
       eta,
+      error: status === "error" ? error : null,
+      converterSlug: job.converterSlug || null,
       inputName: job.uploadId?.originalName || "Unknown",
-      inputSize: job.uploadId?.fileSize ? `${(job.uploadId.fileSize / (1024 * 1024)).toFixed(1)} MB` : "Unknown size",
-      outputUrl: job.downloadUrl || null
+      inputSize: job.uploadId?.fileSize
+        ? `${(job.uploadId.fileSize / (1024 * 1024)).toFixed(1)} MB`
+        : "Unknown size",
+      outputUrl: job.downloadUrl || null,
     });
 
   } catch (error: unknown) {

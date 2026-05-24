@@ -8,8 +8,9 @@ import { getUploadsDir } from "./cleanup.ts";
 const execFileAsync = promisify(execFile);
 
 const TEMP_SUBDIR = "temp";
+const envTimeout = Number(process.env.FFMPEG_TIMEOUT_MS);
 const DEFAULT_TIMEOUT_MS =
-  Number(process.env.FFMPEG_TIMEOUT_MS) || 5 * 60 * 1000;
+  envTimeout > 0 ? envTimeout : 5 * 60 * 1000;
 
 const SAFE_EXT = /^[a-z0-9]+$/;
 
@@ -59,8 +60,16 @@ function buildFfmpegArgs(
         ...base,
         "-c:v",
         "libvpx-vp9",
+        "-deadline",
+        "realtime",
+        "-cpu-used",
+        "4",
+        "-row-mt",
+        "1",
+        "-threads",
+        "2",
         "-crf",
-        "31",
+        "32",
         "-b:v",
         "0",
         "-c:a",
@@ -75,11 +84,13 @@ function buildFfmpegArgs(
         "-c:v",
         "libx264",
         "-preset",
-        "medium",
+        "veryfast",
         "-crf",
         "23",
         "-c:a",
         "aac",
+        "-b:a",
+        "128k",
         "-movflags",
         "+faststart",
         outputPath,
@@ -105,7 +116,7 @@ async function runFfmpeg(args: string[]): Promise<void> {
     const e = err as { killed?: boolean; message?: string; stderr?: string };
     if (e.killed) {
       throw new Error(
-        "conversion failed: FFmpeg timed out. Try a smaller file or shorter clip."
+        "conversion failed: Video conversion timed out. Try a shorter clip, smaller file, or choose MP4 instead of WEBM."
       );
     }
     const detail = (e.stderr || e.message || "").toString().trim();

@@ -47,12 +47,21 @@ interface Converter {
 
 interface Job {
   jobId: string;
-  status: "processing" | "done" | "error";
+  status: "processing" | "done" | "error" | "queued";
   progress: number;
   eta: string;
   inputName: string;
   inputSize: string;
   outputUrl: string | null;
+  converterSlug?: string | null;
+  error?: string | null;
+}
+
+function isMediaJob(job: Job): boolean {
+  return (
+    job.converterSlug === "video-converter" ||
+    job.converterSlug === "audio-converter"
+  );
 }
 
 interface BackendStatus {
@@ -175,8 +184,21 @@ const JobProgressCard = ({ job, onCancel }: { job: Job, onCancel: () => void }) 
           animate={{ width: `${job.progress}%` }}
         />
       </div>
+      {isMediaJob(job) &&
+        job.status === "processing" &&
+        job.progress >= 40 &&
+        job.progress < 100 && (
+          <p className="text-[11px] text-gray-500 leading-snug">
+            Processing media with FFmpeg. Large videos can take several minutes.
+          </p>
+        )}
+      {job.status === "error" && job.error && (
+        <p className="text-[11px] text-red-600 leading-snug font-medium">{job.error}</p>
+      )}
       <div className="flex justify-between items-center pt-2">
-        <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">ETA: {job.eta}</span>
+        <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">
+          {job.status === "error" ? "Error" : `ETA: ${job.eta}`}
+        </span>
         {job.status === "done" && (
           <a 
             href={job.outputUrl || "#"} 
@@ -341,14 +363,28 @@ function MainApp() {
           if (!r.ok) throw new Error("Status check failed");
           const data = await r.json();
           
-          setActiveJob(prev => {
+          setActiveJob((prev) => {
             if (!prev || prev.jobId !== data.jobId) return prev;
-            if (prev.progress === data.progress && prev.status === data.status) return prev;
-            return data;
+            if (
+              prev.progress === data.progress &&
+              prev.status === data.status &&
+              prev.error === data.error &&
+              prev.eta === data.eta
+            ) {
+              return prev;
+            }
+            return {
+              ...prev,
+              ...data,
+              jobId: data.jobId,
+            };
           });
 
           if (data.status === "done" || data.status === "error") {
             clearInterval(interval);
+            if (data.status === "error" && data.error) {
+              setError(data.error);
+            }
           }
         } catch (err) {
           console.error("Polling error:", err);
@@ -418,7 +454,9 @@ function MainApp() {
         eta: "Initializing...",
         inputName: file.name,
         inputSize: fileSizeString,
-        outputUrl: null
+        outputUrl: null,
+        converterSlug: targetSlug,
+        error: null,
       });
     } catch (err: any) {
       console.error("Upload error:", err);

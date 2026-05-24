@@ -54,6 +54,7 @@ const UploadSchema = new mongoose.Schema({
 const ConversionJobSchema = new mongoose.Schema({
   uploadId: { type: mongoose.Schema.Types.ObjectId, ref: "Upload", required: true },
   targetFormat: { type: String, required: true },
+  converterSlug: { type: String },
   status: { type: String, enum: ["queued", "processing", "completed", "failed"], default: "queued" },
   progress: { type: Number, default: 0 },
   downloadUrl: { type: String },
