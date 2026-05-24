@@ -437,7 +437,9 @@ function MainApp() {
         <ConvertPage 
           category={category} 
           onFileUpload={(files, customOpts) => {
-            const currentSlug = `${category}-converter`;
+            // If input and output format are the same, it's a compressor tool
+            const isCompressor = customOpts?.outputFormat && customOpts?.inputFormat && customOpts.inputFormat === customOpts.outputFormat;
+            const currentSlug = isCompressor ? "compressor-converter" : `${category}-converter`;
             handleFileUpload(files, {
               converterSlug: currentSlug,
               outputFormat: customOpts?.outputFormat,

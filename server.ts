@@ -140,6 +140,11 @@ app.post("/api/v1/convert", async (req, res) => {
 
         const isSupportedConversion = isStandardConversion || isAvifInputConversion || isAvifOutputConversion || isSvgInputConversion;
 
+        // Compressor: same-format compression for jpg, png, webp, avif
+        const isSupportedCompression = converterSlug === "compressor-converter" &&
+          ["jpg", "png", "webp", "avif"].includes(inputExt) &&
+          inputExt === targetExt;
+
         // Validate formats and categories
         if (converterSlug === "image-converter") {
           if (!isSupportedConversion) {
@@ -147,6 +152,10 @@ app.post("/api/v1/convert", async (req, res) => {
           }
           if (inputExt === targetExt) {
             throw new Error(`unsupported conversion: Input and output formats are identical (${inputExt.toUpperCase()}). Please select a different target format.`);
+          }
+        } else if (converterSlug === "compressor-converter") {
+          if (!isSupportedCompression) {
+            throw new Error(`unsupported conversion: Unsupported compression format (${inputExt.toUpperCase()}). Supported: JPG, PNG, WEBP, AVIF.`);
           }
         } else {
           throw new Error(`unsupported conversion: Video, audio, document, and archive conversions are coming soon in a future phase.`);
@@ -173,13 +182,21 @@ app.post("/api/v1/convert", async (req, res) => {
           const quality = options?.quality ? parseInt(options.quality, 10) : undefined;
 
           if (targetExt === "jpg") {
-            sharpImg = sharpImg.jpeg({ quality: quality || 85, mozjpeg: true });
+            // For compressor: quality 80; for converter: quality 85
+            const jpgQuality = converterSlug === "compressor-converter" ? (quality || 80) : (quality || 85);
+            sharpImg = sharpImg.jpeg({ quality: jpgQuality, mozjpeg: true });
           } else if (targetExt === "png") {
-            sharpImg = sharpImg.png();
+            // For compressor: compressionLevel 9; for converter: default
+            const pngLevel = converterSlug === "compressor-converter" ? 9 : undefined;
+            sharpImg = sharpImg.png({ compressionLevel: pngLevel });
           } else if (targetExt === "webp") {
+            // For compressor: quality 75 effort 2; for converter: quality 75 effort 2
             sharpImg = sharpImg.webp({ quality: quality || 75, effort: 2 });
           } else if (targetExt === "avif") {
-            sharpImg = sharpImg.avif({ quality: quality || 65 });
+            // For compressor: quality 55 effort 2; for converter: quality 65
+            const avifQuality = converterSlug === "compressor-converter" ? (quality || 55) : (quality || 65);
+            const avifEffort = converterSlug === "compressor-converter" ? 2 : undefined;
+            sharpImg = sharpImg.avif({ quality: avifQuality, effort: avifEffort });
           } else {
             throw new Error(`Unsupported format: ${targetExt}`);
           }
@@ -196,7 +213,8 @@ app.post("/api/v1/convert", async (req, res) => {
         let uploadResult;
         try {
           const baseName = uploadRef.originalName.split('.').slice(0, -1).join('.');
-          const outputName = `${baseName}.${targetExt}`;
+          const outputPrefix = converterSlug === "compressor-converter" ? "compressed" : "converted";
+          const outputName = `${outputPrefix}_${baseName}.${targetExt}`;
           const mimeType = mimeTypes[targetExt] || "application/octet-stream";
           
           uploadResult = await uploadToR2(outputBuffer, outputName, mimeType);
@@ -318,7 +336,9 @@ app.get("/api/v1/download/:jobId", async (req, res) => {
     const mimeType = mimeTypes[format] || 'application/octet-stream';
     const inputName = job.uploadId?.originalName || 'file';
     const baseName = inputName.split('.').slice(0, -1).join('.');
-    const downloadName = `converted_${baseName}.${format}`;
+    // Use compressed_ prefix for compressor jobs (output key contains "compressed_")
+    const isCompressorJob = job.outputStorageKey?.includes('compressed_') ?? false;
+    const downloadName = `${isCompressorJob ? 'compressed' : 'converted'}_${baseName}.${format}`;
 
     // If there is an outputStorageKey, fetch and send the real file from storage
     if (job.outputStorageKey) {

@@ -808,7 +808,10 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
       { name: "SVG to JPG", inF: "svg", outF: "jpg", works: true },
       { name: "SVG to WEBP", inF: "svg", outF: "webp", works: true },
       { name: "HEIC to JPG", inF: "heic", outF: "jpg", works: false },
-      { name: "Image Compressor", inF: "png", outF: "png", works: false },
+      { name: "JPG Compressor", inF: "jpg", outF: "jpg", works: true },
+      { name: "PNG Compressor", inF: "png", outF: "png", works: true },
+      { name: "WEBP Compressor", inF: "webp", outF: "webp", works: true },
+      { name: "AVIF Compressor", inF: "avif", outF: "avif", works: true },
       { name: "Image Resizer", inF: "jpg", outF: "jpg", works: false },
       { name: "Image Cropper", inF: "jpg", outF: "jpg", works: false },
       { name: "GIF Compressor", inF: "gif", outF: "gif", works: false },
@@ -875,7 +878,10 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
       { name: "Volume Converter", inF: "l", outF: "gal", works: false }
     ],
     compressor: [
-      { name: "Image Compressor", inF: "png", outF: "png", works: false },
+      { name: "JPG Compressor", inF: "jpg", outF: "jpg", works: true },
+      { name: "PNG Compressor", inF: "png", outF: "png", works: true },
+      { name: "WEBP Compressor", inF: "webp", outF: "webp", works: true },
+      { name: "AVIF Compressor", inF: "avif", outF: "avif", works: true },
       { name: "Video Compressor", inF: "mp4", outF: "mp4", works: false },
       { name: "Audio Compressor", inF: "mp3", outF: "mp3", works: false },
       { name: "Compress PDF", inF: "pdf", outF: "pdf", works: false }
@@ -984,6 +990,7 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
                   if (e.dataTransfer.files) {
                     onFileUpload(e.dataTransfer.files, {
                       outputFormat: currentToolData.outF,
+                      inputFormat: currentToolData.inF,
                       options: customOptions
                     });
                   }
@@ -1005,6 +1012,7 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
                     if (e.target.files) {
                       onFileUpload(e.target.files, {
                         outputFormat: currentToolData.outF,
+                        inputFormat: currentToolData.inF,
                         options: customOptions
                       });
                     }
