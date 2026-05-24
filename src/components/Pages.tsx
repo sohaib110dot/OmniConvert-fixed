@@ -975,6 +975,9 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
                 <div>
                   <h3 className="font-display font-bold text-xl">{selectedTool} Active View</h3>
                   <p className="text-xs text-gray-400 mt-1">Configuring upload pipeline for converting <span className="font-bold text-primary-teal font-mono uppercase">{currentToolData.inF}</span> to <span className="font-bold text-primary-teal font-mono uppercase">{currentToolData.outF}</span> format.</p>
+                  {currentToolData.inF === "mp4" && currentToolData.outF === "webm" && (
+                    <p className="text-xs text-gray-500 mt-2">Fast WebM mode is used for quicker conversion on VPS.</p>
+                  )}
                 </div>
                 <button 
                   onClick={() => setSelectedTool(null)}

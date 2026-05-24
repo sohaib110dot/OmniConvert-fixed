@@ -55,25 +55,26 @@ function buildFfmpegArgs(
   switch (key) {
     case "mp4->mp3":
       return [...base, "-vn", "-acodec", "libmp3lame", "-q:a", "2", outputPath];
+    // WebM uses VP8 fast mode by default because VP9 is too slow on small VPS CPUs.
     case "mp4->webm":
       return [
         ...base,
         "-c:v",
-        "libvpx-vp9",
+        "libvpx",
         "-deadline",
         "realtime",
         "-cpu-used",
-        "4",
-        "-row-mt",
-        "1",
-        "-threads",
-        "2",
-        "-crf",
-        "32",
+        "8",
         "-b:v",
-        "0",
+        "1M",
+        "-maxrate",
+        "1.5M",
+        "-bufsize",
+        "2M",
         "-c:a",
         "libopus",
+        "-b:a",
+        "96k",
         outputPath,
       ];
     case "webm->mp4":

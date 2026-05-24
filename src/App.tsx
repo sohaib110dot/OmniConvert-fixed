@@ -54,6 +54,7 @@ interface Job {
   inputSize: string;
   outputUrl: string | null;
   converterSlug?: string | null;
+  outputFormat?: string | null;
   error?: string | null;
 }
 
@@ -184,6 +185,11 @@ const JobProgressCard = ({ job, onCancel }: { job: Job, onCancel: () => void }) 
           animate={{ width: `${job.progress}%` }}
         />
       </div>
+      {job.outputFormat === "webm" && isMediaJob(job) && (
+        <p className="text-[11px] text-primary-teal/80 leading-snug">
+          Fast WebM mode is used for quicker conversion on VPS.
+        </p>
+      )}
       {isMediaJob(job) &&
         job.status === "processing" &&
         job.progress >= 40 &&
@@ -456,6 +462,7 @@ function MainApp() {
         inputSize: fileSizeString,
         outputUrl: null,
         converterSlug: targetSlug,
+        outputFormat: targetFormat,
         error: null,
       });
     } catch (err: any) {
