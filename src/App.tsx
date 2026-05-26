@@ -157,7 +157,7 @@ const ConverterCard = ({
   </Link>
 );
 
-const JobProgressCard = ({ job, onCancel }: { job: Job, onCancel: () => void }) => (
+const JobProgressCard = ({ job, onCancel, onRetry }: { job: Job, onCancel: () => void, onRetry: () => void }) => (
   <motion.div 
     initial={{ opacity: 0, x: 20 }}
     animate={{ opacity: 1, x: 0 }}
@@ -205,6 +205,14 @@ const JobProgressCard = ({ job, onCancel }: { job: Job, onCancel: () => void }) 
         <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">
           {job.status === "error" ? "Error" : `ETA: ${job.eta}`}
         </span>
+        {job.status === "error" && (
+          <button 
+            onClick={onRetry}
+            className="text-xs font-bold text-primary-teal hover:underline cursor-pointer flex items-center gap-1"
+          >
+            Retry
+          </button>
+        )}
         {job.status === "done" && (
           <a 
             href={job.outputUrl || "#"} 
@@ -650,7 +658,11 @@ function MainApp() {
 
       <AnimatePresence>
         {activeJob && (
-          <JobProgressCard job={activeJob} onCancel={() => setActiveJob(null)} />
+          <JobProgressCard 
+            job={activeJob} 
+            onCancel={() => setActiveJob(null)} 
+            onRetry={() => setActiveJob(null)} 
+          />
         )}
       </AnimatePresence>
     </div>

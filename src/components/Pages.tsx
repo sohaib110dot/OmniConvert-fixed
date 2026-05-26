@@ -196,7 +196,7 @@ export function PricingPage() {
 
               <div className="bg-amber-50 border border-amber-100 p-3.5 rounded-xl text-[11px] text-amber-800 leading-snug flex gap-2 text-left mb-6">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>This checkout workflow is a visual mockup. Pressing continue activates the virtual Pro subscription locally for testing!</span>
+                <span>Payment integration is Coming Soon. Subscriptions are not yet active.</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -207,13 +207,10 @@ export function PricingPage() {
                   Cancel Checkout
                 </button>
                 <button 
-                  onClick={() => {
-                    setSelectedPlan(null);
-                    alert("Congratulations! Premium mode active locally.");
-                  }}
-                  className="bg-primary-teal text-white hover:opacity-90 rounded-xl py-3 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  disabled
+                  className="bg-gray-300 text-gray-500 rounded-xl py-3 text-xs font-bold cursor-not-allowed shadow-sm"
                 >
-                  Start Pro Plan
+                  Coming Soon
                 </button>
               </div>
             </motion.div>
@@ -377,14 +374,6 @@ print(response.json())`
 export function DashboardPage() {
   const [activeTab, setActiveTab] = useState<"history" | "keys" | "analytics">("history");
 
-  // Mock conversion history
-  const history = [
-    { id: "10a82b", file: "presentation.pptx", format: "PDF", size: "12.4 MB", date: "2026-05-18", status: "completed" },
-    { id: "98fc2a", file: "hero_banner.png", format: "WEBP", size: "4.8 MB", date: "2026-05-17", status: "completed" },
-    { id: "87ea3d", file: "podcast_ep3.wav", format: "MP3", size: "78.2 MB", date: "2026-05-15", status: "completed" },
-    { id: "76bd1f", file: "vacation_clip.mov", format: "MP4", size: "112.5 MB", date: "2026-05-12", status: "failed" }
-  ];
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-16 text-secondary-slate">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-gray-100 pb-6">
@@ -436,55 +425,12 @@ export function DashboardPage() {
 
       {/* Tab Panels */}
       {activeTab === "history" && (
-        <div className="bg-white border border-gray-150 rounded-2xl overflow-hidden shadow-2xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="bg-gray-50 text-gray-400 font-bold border-b border-gray-100 text-xs">
-                  <th className="p-4 uppercase tracking-wider">File Name</th>
-                  <th className="p-4 uppercase tracking-wider">Target Format</th>
-                  <th className="p-4 uppercase tracking-wider">Size</th>
-                  <th className="p-4 uppercase tracking-wider">Processed Date</th>
-                  <th className="p-4 uppercase tracking-wider">Status</th>
-                  <th className="p-4 uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {history.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50/50">
-                    <td className="p-4 font-semibold text-secondary-slate flex items-center gap-2 min-w-[200px]">
-                      <FileText className="w-4 h-4 text-gray-400" />
-                      <span className="truncate w-40">{item.file}</span>
-                    </td>
-                    <td className="p-4 font-mono font-bold text-xs"><span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded uppercase">{item.format}</span></td>
-                    <td className="p-4 text-gray-500 text-xs">{item.size}</td>
-                    <td className="p-4 text-gray-500 text-xs">{item.date}</td>
-                    <td className="p-4">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        item.status === "completed" 
-                          ? "bg-green-50 text-green-700 border border-green-100" 
-                          : "bg-red-50 text-red-700 border border-red-100"
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${item.status === "completed" ? "bg-green-500" : "bg-red-500"}`} />
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      {item.status === "completed" ? (
-                        <button className="text-primary-teal hover:underline text-xs font-bold inline-flex items-center gap-1 cursor-pointer">
-                          <Download className="w-3.5 h-3.5" /> Download
-                        </button>
-                      ) : (
-                        <button className="text-gray-400 cursor-not-allowed text-xs font-bold inline-flex items-center gap-1" disabled>
-                          Unavailable
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="bg-white border border-gray-150 rounded-2xl overflow-hidden shadow-2xs p-12 text-center">
+          <div className="w-12 h-12 bg-gray-50 text-gray-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-6 h-6" />
           </div>
+          <h4 className="font-bold text-gray-500">No conversion history yet.</h4>
+          <p className="text-xs text-gray-400 mt-2">Completed real conversions will appear here later.</p>
         </div>
       )}
 
@@ -692,6 +638,8 @@ export function BlogPage() {
 // LOGIN & SIGNUP PAGES
 // ==========================================
 export function AuthPage({ type }: { type: "login" | "signup" }) {
+  const [showComingSoon, setShowComingSoon] = useState(false);
+
   return (
     <div className="max-w-md mx-auto px-4 py-20 text-secondary-slate">
       <div className="bg-white/80 border border-gray-150 shadow-2xl p-8 rounded-3xl backdrop-blur-md relative overflow-hidden space-y-6">
@@ -712,7 +660,7 @@ export function AuthPage({ type }: { type: "login" | "signup" }) {
           </p>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); alert("Virtual credentials active locally for testing!"); }} className="space-y-4 relative">
+        <form onSubmit={(e) => { e.preventDefault(); setShowComingSoon(true); }} className="space-y-4 relative">
           {type === "signup" && (
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-400 uppercase">Username</label>
@@ -761,6 +709,13 @@ export function AuthPage({ type }: { type: "login" | "signup" }) {
             {type === "login" ? "Sign In" : "Register Free"}
           </button>
         </form>
+
+        {showComingSoon && (
+          <div className="mt-4 p-3 bg-amber-50 border border-amber-100 text-amber-800 text-[11px] rounded-xl flex items-center gap-2 font-semibold">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            Authentication is Coming Soon. Not connected yet.
+          </div>
+        )}
 
         <div className="text-center text-xs text-gray-400 mt-6 pt-4 border-t border-gray-50 relative">
           {type === "login" ? (
@@ -843,6 +798,7 @@ export function ConvertPage({ category, onFileUpload, isUploading, convertersDat
       { name: "PNG to PDF", inF: "png", outF: "pdf", works: true },
       { name: "PDF to JPG", inF: "pdf", outF: "jpg", works: true },
       { name: "PDF to PNG", inF: "pdf", outF: "png", works: true },
+      { name: "PDF to WEBP", inF: "pdf", outF: "webp", works: true },
       { name: "PDF to Word", inF: "pdf", outF: "docx", works: false },
       { name: "Word to PDF", inF: "docx", outF: "pdf", works: false },
       { name: "Compress PDF", inF: "pdf", outF: "pdf", works: false },
