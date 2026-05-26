@@ -1,5 +1,6 @@
 import { PDFDocument } from "pdf-lib";
-import archiver from "archiver";
+import * as archiverPkg from "archiver";
+const archiver = (archiverPkg as any).default || archiverPkg;
 import sharp from "sharp";
 import { PassThrough } from "stream";
 
